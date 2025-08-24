@@ -152,8 +152,6 @@ local.settings.json
 *.bak
 *.backup
 
-# Compiled CSS (if using preprocessors)
-*.css.map
 
 # Storybook build outputs
 storybook-static/
