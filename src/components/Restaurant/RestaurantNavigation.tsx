@@ -1,4 +1,4 @@
-import { Group, Button, Container, Title, Box } from '@mantine/core';
+import { Group, Container, Title, Box } from '@mantine/core';
 import { Link } from 'react-router-dom';
 import { IconToolsKitchen2 } from '@tabler/icons-react';
 
@@ -22,45 +22,7 @@ export function RestaurantNavigation() {
             </Group>
           </Link>
 
-          {/* Desktop Navigation */}
-          <Group gap="sm" visibleFrom="md">
-            <Button
-              variant="filled"
-              color="orange"
-              component={Link}
-              to="/"
-              size="sm"
-              style={{ 
-                fontSize: '0.875rem',
-                padding: '8px 16px',
-                height: '36px',
-                backgroundColor: '#ea580c',
-                borderColor: '#ea580c'
-              }}
-            >
-              Make Reservation
-            </Button>
-          </Group>
 
-          {/* Mobile Navigation */}
-          <Group gap="xs" hiddenFrom="md">
-            <Button
-              variant="filled"
-              color="orange"
-              component={Link}
-              to="/"
-              size="sm"
-              style={{ 
-                fontSize: '0.875rem',
-                padding: '8px 16px',
-                height: '36px',
-                backgroundColor: '#ea580c',
-                borderColor: '#ea580c'
-              }}
-            >
-              Book Now
-            </Button>
-          </Group>
         </Group>
       </Container>
     </Box>
