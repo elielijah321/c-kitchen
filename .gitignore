@@ -165,12 +165,3 @@ coverage/
 # Misc
 *.tgz
 *.tar.gz
-
-# Project specific exclusions
-SOCCER_ASSIST_TEMPLATE.md
-bootstrap*.css
-bootstrap*.css.map
-
-# Old/unused directories from template
-src/pages/CSG/
-src/components/CSG/
