@@ -29,6 +29,7 @@
     "@mantine/hooks": "7.17.1",
     "@mantinex/mantine-logo": "^1.1.0",
     "@tabler/icons-react": "^3.30.0",
+    "dayjs": "^1.11.13",
     "embla-carousel": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.9",
