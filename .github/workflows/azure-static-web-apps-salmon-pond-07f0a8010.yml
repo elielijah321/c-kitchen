@@ -1,4 +1,4 @@
-name: Deploy to main
+name: Deploy Frontend and API
 
 on:
   push:
@@ -10,27 +10,82 @@ on:
       - main
 
 jobs:
-  build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+  # Deploy API to Azure Functions
+  deploy_api:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Deploy API Job
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
-      - name: Build And Deploy
+      
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Build and Deploy API
+        run: |
+          cd API
+          echo "🚀 Starting Azure Function deployment..."
+          
+          # Clean previous builds
+          rm -rf ./publish-direct
+          rm -f ./deploy.zip
+          
+          # Publish .NET 8 isolated function
+          dotnet publish API.csproj -c Release -o ./publish-direct
+          
+          # Create zip package
+          cd ./publish-direct
+          zip -r ../deploy.zip .
+          cd ..
+          
+          # Deploy to Azure Function App
+          az functionapp deployment source config-zip \
+            --name "r-record" \
+            --resource-group $(az functionapp list --query "[?name=='r-record'].resourceGroup" -o tsv) \
+            --src ./deploy.zip
+          
+          # Restart function app
+          az functionapp restart \
+            --name "r-record" \
+            --resource-group $(az functionapp list --query "[?name=='r-record'].resourceGroup" -o tsv)
+          
+          # Cleanup
+          rm -rf ./publish-direct
+          rm -f ./deploy.zip
+          
+          echo "✅ API deployment completed successfully!"
+
+  # Deploy Frontend to Azure Static Web Apps
+  build_and_deploy_frontend:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Frontend Job
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+      - name: Build And Deploy Frontend
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_SALMON_POND_07F0A8010 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          ###### Repository/Build Configurations ######
           app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "dist" # Built app content directory - optional
+          api_location: "" # Api source code path - keep empty since API is deployed separately
+          output_location: "dist" # Built app content directory
           ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:
