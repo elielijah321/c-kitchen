@@ -1,1 +1,0 @@
-// Removed for .NET isolated; configuration is now in Program.cs
