@@ -26,6 +26,22 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       
+      - name: Configure NuGet Sources
+        run: |
+          # Add GitHub Package Registry sources for private packages
+          # Using NUGET_AUTH_TOKEN which should be set to a GitHub PAT with package:read permissions
+          dotnet nuget add source "https://nuget.pkg.github.com/elielijah321/index.json" \
+            --name "GithubPackages" \
+            --username "elielijah321" \
+            --password "${{ secrets.NUGET_AUTH_TOKEN }}" \
+            --store-password-in-clear-text
+          
+          dotnet nuget add source "https://nuget.pkg.github.com/DFE-Digital/index.json" \
+            --name "DfE" \
+            --username "elielijah321" \
+            --password "${{ secrets.NUGET_AUTH_TOKEN }}" \
+            --store-password-in-clear-text
+      
       - name: Login to Azure
         uses: azure/login@v1
         with:
