@@ -175,7 +175,8 @@ chmod +x deploy.sh
 After deployment, test your endpoints:
 
 - **Frontend**: `https://salmon-pond-07f0a8010.azurestaticapps.net`
-- **API**: `https://c-kitchen.azurewebsites.net/api/test`
+- **API Health Check**: `https://c-kitchen.azurewebsites.net/api/health`
+- **API HelloWorld**: `https://c-kitchen.azurewebsites.net/api/helloWorld`
 
 ## Environment Variables
 

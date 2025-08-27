@@ -105,9 +105,17 @@ jobs:
           sleep 30
           
           # Test the deployment
-          echo "🧪 Testing the deployed function..."
-          FUNCTION_URL="https://c-kitchen.azurewebsites.net/api/test"
-          curl -f "$FUNCTION_URL" || echo "❌ Function test failed (may be normal if no test endpoint exists)"
+          echo "🧪 Testing the deployed functions..."
+          
+          # Test health check endpoint
+          HEALTH_URL="https://c-kitchen.azurewebsites.net/api/health"
+          echo "Testing health check: $HEALTH_URL"
+          curl -f "$HEALTH_URL" || echo "❌ Health check failed"
+          
+          # Test HelloWorld endpoint
+          HELLO_URL="https://c-kitchen.azurewebsites.net/api/helloWorld"
+          echo "Testing HelloWorld: $HELLO_URL"
+          curl -f "$HELLO_URL" || echo "❌ HelloWorld test failed"
           
           # Cleanup
           rm -rf ./publish-direct
