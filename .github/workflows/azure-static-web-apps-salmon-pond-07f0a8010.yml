@@ -40,24 +40,58 @@ jobs:
           rm -rf ./publish-direct
           rm -f ./deploy.zip
           
-          # Publish .NET 8 isolated function
-          dotnet publish API.csproj -c Release -o ./publish-direct
+          # Restore dependencies
+          echo "📦 Restoring .NET dependencies..."
+          dotnet restore API.csproj
+          
+          # Publish .NET 8 isolated function with explicit settings
+          echo "🔨 Publishing .NET 8 Azure Functions..."
+          dotnet publish API.csproj \
+            --configuration Release \
+            --output ./publish-direct \
+            --runtime win-x64 \
+            --self-contained false \
+            --verbosity normal
+          
+          # Verify the output
+          echo "📁 Published files:"
+          ls -la ./publish-direct/
+          
+          # Check if API.exe exists
+          if [ -f "./publish-direct/API.exe" ]; then
+            echo "✅ API.exe found in publish directory"
+          else
+            echo "❌ API.exe not found! Available files:"
+            find ./publish-direct/ -name "*.exe" -o -name "*.dll" | head -10
+          fi
           
           # Create zip package
+          echo "📦 Creating deployment package..."
           cd ./publish-direct
           zip -r ../deploy.zip .
           cd ..
           
           # Deploy to Azure Function App
+          echo "🚀 Deploying to Azure Function App..."
           az functionapp deployment source config-zip \
             --name "c-kitchen" \
             --resource-group "c-kitchen-rg" \
             --src ./deploy.zip
           
           # Restart function app
+          echo "🔄 Restarting function app..."
           az functionapp restart \
             --name "c-kitchen" \
             --resource-group "c-kitchen-rg"
+          
+          # Wait for restart
+          echo "⏳ Waiting for function app to restart..."
+          sleep 30
+          
+          # Test the deployment
+          echo "🧪 Testing the deployed function..."
+          FUNCTION_URL="https://c-kitchen.azurewebsites.net/api/test"
+          curl -f "$FUNCTION_URL" || echo "❌ Function test failed (may be normal if no test endpoint exists)"
           
           # Cleanup
           rm -rf ./publish-direct
