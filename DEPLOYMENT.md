@@ -5,7 +5,7 @@ This document outlines the CI/CD pipeline setup for the C-Kitchen project, which
 ## Architecture Overview
 
 - **Frontend**: React application deployed to Azure Static Web Apps
-- **API**: .NET 8 Azure Functions deployed to Azure Function App (`r-record`)
+- **API**: .NET 8 Azure Functions deployed to Azure Function App (`c-kitchen`)
 - **CI/CD**: GitHub Actions workflow with automated deployment
 
 ## Prerequisites
@@ -19,7 +19,8 @@ Before the CI/CD pipeline can work, ensure you have the following Azure resource
    - Already configured and working
 
 2. **Azure Function App** (for API)
-   - Function App name: `r-record`
+   - Function App name: `c-kitchen`
+   - Resource Group: `c-kitchen-rg`
    - Runtime: .NET 8 Isolated
    - Must be created and accessible via Azure CLI
 
@@ -165,7 +166,7 @@ chmod +x deploy.sh
 ### Common Issues
 
 1. **Authentication Errors**: Verify `AZURE_CREDENTIALS` secret is correct
-2. **Resource Not Found**: Ensure Function App `r-record` exists and is accessible
+2. **Resource Not Found**: Ensure Function App `c-kitchen` exists and is accessible
 3. **Build Failures**: Check .NET version compatibility and dependencies
 4. **Submodule Issues**: Ensure submodules are properly initialized
 
@@ -174,7 +175,7 @@ chmod +x deploy.sh
 After deployment, test your endpoints:
 
 - **Frontend**: `https://salmon-pond-07f0a8010.azurestaticapps.net`
-- **API**: `https://r-record.azurewebsites.net/api/test`
+- **API**: `https://c-kitchen.azurewebsites.net/api/test`
 
 ## Environment Variables
 

@@ -50,14 +50,14 @@ jobs:
           
           # Deploy to Azure Function App
           az functionapp deployment source config-zip \
-            --name "r-record" \
-            --resource-group $(az functionapp list --query "[?name=='r-record'].resourceGroup" -o tsv) \
+            --name "c-kitchen" \
+            --resource-group "c-kitchen-rg" \
             --src ./deploy.zip
           
           # Restart function app
           az functionapp restart \
-            --name "r-record" \
-            --resource-group $(az functionapp list --query "[?name=='r-record'].resourceGroup" -o tsv)
+            --name "c-kitchen" \
+            --resource-group "c-kitchen-rg"
           
           # Cleanup
           rm -rf ./publish-direct
