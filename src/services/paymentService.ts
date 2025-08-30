@@ -58,7 +58,9 @@ export interface ReservationSuccessResponse {
 }
 
 export class PaymentService {
-  private static readonly API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7082/api';
+  private static readonly API_BASE_URL = 'https://c-kitchen-d4g8bvewf7f4eehe.uksouth-01.azurewebsites.net/api';
+
+  //private static readonly API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7082/api';
 
   /**
    * Creates a Stripe checkout session for the given payment request
