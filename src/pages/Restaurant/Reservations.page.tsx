@@ -28,13 +28,13 @@ const reservationTypes = [
     value: 'ayce',
     label: 'All You Can Eat (AYCE)',
     description: '£5 per person deposit',
-    depositPerPerson: 500, // £5 in pence
+    depositPerPerson: 5,
   },
   {
     value: 'christmas',
     label: 'Christmas Menu (inc Christmas Day)',
     description: '£8 per person deposit',
-    depositPerPerson: 800, // £8 in pence
+    depositPerPerson: 8,
   },
 ];
 
@@ -127,7 +127,7 @@ export function RestaurantReservationsPage() {
       // Create payment request for deposits
       const paymentRequest = {
         productName: `${reservationTypeLabel} Deposit - ${values.firstName} ${values.lastName}`,
-        amountInPence: reservationFee,
+        amountInPence: reservationFee, // Backend core services handle conversion to pence
         quantity: 1,
         currency: 'GBP',
         successUrl: `${window.location.origin}/success`,
@@ -332,10 +332,10 @@ export function RestaurantReservationsPage() {
                   >
                     {isSubmitting 
                       ? (reservationFee > 0 ? 'Processing Payment...' : 'Confirming Reservation...') 
-                      : (reservationFee > 0 
-                          ? `Pay ${PaymentService.formatAmount(reservationFee)} Deposit & Reserve Table` 
-                          : 'Confirm Reservation (No Deposit Required)'
-                        )
+                                              : (reservationFee > 0 
+                            ? `Pay ${PaymentService.formatAmount(reservationFee)} Deposit & Reserve Table` 
+                            : 'Confirm Reservation (No Deposit Required)'
+                          )
                     }
                   </Button>
                 </Stack>

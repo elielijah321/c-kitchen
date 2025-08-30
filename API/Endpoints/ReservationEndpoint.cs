@@ -8,6 +8,7 @@ using AremuCoreServices;
 using AremuCoreServices.Helpers;
 using AremuCoreServices.Models;
 using AremuCoreServices.Models.CredentialRecords;
+using AremuCoreServices.Models.Enums;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -77,17 +78,45 @@ namespace Project.Function.Endpoints
 
                     try
                     {
-                        // For Stripe reservations, the metadata should be passed from the frontend
-                        // The frontend sends the reservation details when creating the payment session
-                        // We'll use the provided data and mark it as paid
-                        finalReservationDetails = CreateReservationDetailsFromRequest(reservationData);
-                        finalReservationDetails.PaymentStatus = "Paid";
-                        finalReservationDetails.StripeSessionId = reservationData.StripeSessionId;
+                        // Retrieve reservation details from Stripe session metadata using GetCheckoutSessionDetailsAsync
+                        var stripeCredentials = new StripeCredentialsRecord(
+                            SystemConstants.StripeApiKey,
+                            StripePaymentMode.PAYMENT,
+                            StripePaymentCurrency.GBP,
+                            "", // Success URL not needed for retrieval
+                            ""  // Cancel URL not needed for retrieval
+                        );
+                        var stripeSessionDetails = await StripeService.GetCheckoutSessionDetailsAsync(stripeCredentials, reservationData.StripeSessionId);
                         
-                        _logger.LogInformation("Using provided reservation data for Stripe session: {SessionId}", reservationData.StripeSessionId);
-                        
-                        // Note: To get full Stripe session details, you would need to implement a webhook endpoint
-                        // that receives the session data from Stripe, or use Stripe's API directly
+                        if (stripeSessionDetails != null && stripeSessionDetails.Metadata != null)
+                        {
+                            // Extract reservation details from Stripe metadata
+                            finalReservationDetails = new ReservationDetails
+                            {
+                                FirstName = stripeSessionDetails.Metadata.GetValueOrDefault("firstName", reservationData.FirstName ?? "Unknown"),
+                                LastName = stripeSessionDetails.Metadata.GetValueOrDefault("lastName", reservationData.LastName ?? "Guest"),
+                                ReservationType = stripeSessionDetails.Metadata.GetValueOrDefault("reservationType", reservationData.ReservationType ?? "regular"),
+                                ReservationTypeLabel = GetReservationTypeLabel(stripeSessionDetails.Metadata.GetValueOrDefault("reservationType", reservationData.ReservationType ?? "regular")),
+                                ReservationDate = stripeSessionDetails.Metadata.GetValueOrDefault("reservationDate", reservationData.ReservationDate ?? DateTime.UtcNow.ToString("dd/MM/yyyy")),
+                                ReservationTime = stripeSessionDetails.Metadata.GetValueOrDefault("reservationTime", reservationData.ReservationTime ?? "Not specified"),
+                                PartySize = int.TryParse(stripeSessionDetails.Metadata.GetValueOrDefault("partySize", reservationData.PartySize?.ToString() ?? "2"), out var partySize) ? partySize : 2,
+                                Notes = stripeSessionDetails.Metadata.GetValueOrDefault("notes", reservationData.Notes ?? ""),
+                                DepositAmount = (int)(stripeSessionDetails.AmountTotal ?? reservationData.DepositAmount ?? 0),
+                                PaymentStatus = "Paid",
+                                StripeSessionId = reservationData.StripeSessionId,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            
+                            _logger.LogInformation("Successfully retrieved reservation details from Stripe session metadata for session: {SessionId}", reservationData.StripeSessionId);
+                        }
+                        else
+                        {
+                            // Fallback to provided data if Stripe session or metadata is null
+                            _logger.LogWarning("Stripe session or metadata is null, using provided data as fallback for session: {SessionId}", reservationData.StripeSessionId);
+                            finalReservationDetails = CreateReservationDetailsFromRequest(reservationData);
+                            finalReservationDetails.PaymentStatus = "Paid";
+                            finalReservationDetails.StripeSessionId = reservationData.StripeSessionId;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -117,11 +146,18 @@ namespace Project.Function.Endpoints
                     });
                 }
 
-                // Check for duplicate Stripe session ID before adding
+                // Check for duplicates before adding
                 bool isDuplicate = false;
                 if (!string.IsNullOrEmpty(finalReservationDetails.StripeSessionId))
                 {
+                    // For Stripe reservations, check for duplicate session ID
                     isDuplicate = await CheckIfRowExists(finalReservationDetails.StripeSessionId);
+                }
+                else
+                {
+                    // For direct reservations, check for duplicates based on reservation details
+                    // This prevents double-booking the same time slot
+                    isDuplicate = await CheckIfDirectReservationExists(finalReservationDetails);
                 }
 
                 // Only append to Google Spreadsheet if not a duplicate
@@ -271,6 +307,26 @@ namespace Project.Function.Endpoints
             var sheetInfo = CreateGoogleSheetInfo();
 
             return GoogleSheetService.RowExists(credentials, sheetInfo, value, 10);
+        }
+
+        private async Task<bool> CheckIfDirectReservationExists(ReservationDetails reservation)
+        {
+            try
+            {
+                var credentials = CreateGoogleCredentials();
+                var sheetInfo = CreateGoogleSheetInfo();
+
+                // For direct reservations, check if the same person has a reservation at the same time
+                // This prevents double-booking by the same person
+                var searchValue = $"{reservation.FirstName}_{reservation.LastName}_{reservation.ReservationDate}_{reservation.ReservationTime}";
+
+                return GoogleSheetService.RowExists(credentials, sheetInfo, searchValue, 10);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to check for duplicate direct reservation");
+                return false; // If we can't check, allow the reservation to proceed
+            }
         }
 
         private static GoogleCredentialsRecord CreateGoogleCredentials()

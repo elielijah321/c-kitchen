@@ -116,14 +116,13 @@ export class PaymentService {
   }
 
   /**
-   * Formats amount in pence to display currency
+   * Formats amount in pounds to display currency
    */
-  static formatAmount(amountInPence: number, currency: string = 'GBP'): string {
-    const amount = amountInPence / 100;
+  static formatAmount(amountInPounds: number, currency: string = 'GBP'): string {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency,
-    }).format(amount);
+    }).format(amountInPounds);
   }
 
   /**

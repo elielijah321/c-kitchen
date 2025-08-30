@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="aremu.core.services" Version="3.0.6" />
+    <PackageReference Include="aremu.core.services" Version="3.0.7" />
     <!-- Azure Functions .NET Isolated packages -->
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.24.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.17.2" OutputItemType="Analyzer" />
