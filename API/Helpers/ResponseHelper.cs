@@ -16,6 +16,7 @@ namespace Project.Function.Helpers
         public static async Task<HttpResponseData> OkObjectResult(HttpRequestData req, object data)
         {
             var response = req.CreateResponse(HttpStatusCode.OK);
+            AddCorsHeaders(response);
             response.Headers.Add("Content-Type", "application/json; charset=utf-8");
             await response.WriteStringAsync(JsonSerializer.Serialize(data));
             return response;
@@ -30,6 +31,7 @@ namespace Project.Function.Helpers
         public static async Task<HttpResponseData> BadRequestObjectResult(HttpRequestData req, object data)
         {
             var response = req.CreateResponse(HttpStatusCode.BadRequest);
+            AddCorsHeaders(response);
             response.Headers.Add("Content-Type", "application/json; charset=utf-8");
             await response.WriteStringAsync(JsonSerializer.Serialize(data));
             return response;
@@ -44,6 +46,7 @@ namespace Project.Function.Helpers
         public static async Task<HttpResponseData> NotFoundObjectResult(HttpRequestData req, object data)
         {
             var response = req.CreateResponse(HttpStatusCode.NotFound);
+            AddCorsHeaders(response);
             response.Headers.Add("Content-Type", "application/json; charset=utf-8");
             await response.WriteStringAsync(JsonSerializer.Serialize(data));
             return response;
@@ -58,6 +61,7 @@ namespace Project.Function.Helpers
         public static async Task<HttpResponseData> InternalServerErrorObjectResult(HttpRequestData req, object data)
         {
             var response = req.CreateResponse(HttpStatusCode.InternalServerError);
+            AddCorsHeaders(response);
             response.Headers.Add("Content-Type", "application/json; charset=utf-8");
             await response.WriteStringAsync(JsonSerializer.Serialize(data));
             return response;
@@ -73,9 +77,22 @@ namespace Project.Function.Helpers
         public static async Task<HttpResponseData> ObjectResult(HttpRequestData req, HttpStatusCode statusCode, object data)
         {
             var response = req.CreateResponse(statusCode);
+            AddCorsHeaders(response);
             response.Headers.Add("Content-Type", "application/json; charset=utf-8");
             await response.WriteStringAsync(JsonSerializer.Serialize(data));
             return response;
+        }
+
+        /// <summary>
+        /// Adds CORS headers to the HTTP response
+        /// </summary>
+        /// <param name="response">The HTTP response to add headers to</param>
+        public static void AddCorsHeaders(HttpResponseData response)
+        {
+            response.Headers.Add("Access-Control-Allow-Origin", "*");
+            response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+            response.Headers.Add("Access-Control-Max-Age", "86400");
         }
     }
 }

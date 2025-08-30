@@ -110,6 +110,10 @@ build/
 *.swo
 *~
 
+# Keep only essential .vscode files, ignore the rest
+!.vscode/extensions.json
+!.vscode/recommended-extensions.json
+
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -127,8 +131,9 @@ Thumbs.db
 package-lock.json
 
 # .NET related files
-*/bin/
-*/obj/
+**/bin/
+**/obj/
+**/publish/
 *.user
 *.suo
 *.cache
@@ -138,10 +143,20 @@ package-lock.json
 *.msi
 *.msm
 *.msp
+*.nupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
 
 # Azure Functions
 local.settings.json
 *.azurite
+.azure/
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/settings.json
 
 # Database files
 *.db
@@ -159,6 +174,34 @@ storybook-static/
 # Test results
 test-results/
 coverage/
+
+# Documentation and example files to keep
+# Keep all .md files (documentation)
+# Keep all example and integration files
+
+# Development and deployment files
+*.zip
+*.rar
+deploy-working.sh.bak
+*.deploy
+*.deployproj
+
+# Runtime and temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.sass-cache/
+*.css.map
+*.js.map
+
+# Security and sensitive files
+.env.example
+!.env.example
+secrets.json
+appsettings.Development.json
+appsettings.Production.json
 
 # Misc
 *.tgz

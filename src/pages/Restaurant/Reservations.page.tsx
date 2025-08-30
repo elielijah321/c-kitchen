@@ -1,31 +1,53 @@
-import { Container, Title, Text, Button, Group, Stack, Card, Grid, Box, TextInput, Textarea, Select, NumberInput } from '@mantine/core';
+import { Container, Title, Text, Button, Group, Stack, Card, Grid, Box, TextInput, Textarea, Select, NumberInput, Alert, Paper } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { IconCalendar, IconClock, IconUsers, IconUser, IconMail, IconPhone } from '@tabler/icons-react';
+import { IconCalendar, IconClock, IconUsers, IconUser, IconCreditCard, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { RestaurantLayout } from '../../components/Restaurant/RestaurantLayout';
 import { AnimatedSection } from '../../components/Restaurant/AnimatedSection';
 import { useState } from 'react';
+import { PaymentService } from '../../services/paymentService';
 
 interface ReservationForm {
   firstName: string;
   lastName: string;
-  email: string;
-  phoneNumber: string;
+  reservationType: string;
   date: Date | null;
   time: string;
   partySize: number;
   notes: string;
 }
 
+const reservationTypes = [
+  {
+    value: 'regular',
+    label: 'Regular Dining',
+    description: 'No deposit required',
+    depositPerPerson: 0,
+  },
+  {
+    value: 'ayce',
+    label: 'All You Can Eat (AYCE)',
+    description: '£5 per person deposit',
+    depositPerPerson: 500, // £5 in pence
+  },
+  {
+    value: 'christmas',
+    label: 'Christmas Menu (inc Christmas Day)',
+    description: '£8 per person deposit',
+    depositPerPerson: 800, // £8 in pence
+  },
+];
+
 export function RestaurantReservationsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reservationFee, setReservationFee] = useState(0); // Default fee for regular dining
   
   const form = useForm<ReservationForm>({
     initialValues: {
       firstName: '',
       lastName: '',
-      email: '',
-      phoneNumber: '',
+      reservationType: 'regular',
       date: null,
       time: '',
       partySize: 2,
@@ -34,28 +56,110 @@ export function RestaurantReservationsPage() {
     validate: {
       firstName: (value) => (value.length < 2 ? 'First name must have at least 2 letters' : null),
       lastName: (value) => (value.length < 2 ? 'Last name must have at least 2 letters' : null),
-      email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Invalid email'),
-      phoneNumber: (value) => (value.length < 10 ? 'Please enter a valid phone number' : null),
+      reservationType: (value) => (value ? null : 'Please select a reservation type'),
       date: (value) => (value ? null : 'Please select a date'),
       time: (value) => (value ? null : 'Please select a time'),
       partySize: (value) => (value >= 1 && value <= 12 ? null : 'Party size must be between 1 and 12'),
     },
   });
 
+  // Calculate reservation fee based on type and party size
+  const calculateReservationFee = (reservationType: string, partySize: number) => {
+    const selectedType = reservationTypes.find(type => type.value === reservationType);
+    if (!selectedType) return 0;
+    return selectedType.depositPerPerson * partySize;
+  };
+
+  // Update reservation fee when party size changes
+  const handlePartySizeChange = (value: string | number) => {
+    const partySize = typeof value === 'string' ? parseInt(value) || 2 : value;
+    form.setFieldValue('partySize', partySize);
+    setReservationFee(calculateReservationFee(form.values.reservationType, partySize));
+  };
+
+  // Update reservation fee when reservation type changes
+  const handleReservationTypeChange = (value: string | null) => {
+    if (value) {
+      form.setFieldValue('reservationType', value);
+      setReservationFee(calculateReservationFee(value, form.values.partySize));
+    }
+  };
+
   const handleSubmit = async (values: ReservationForm) => {
     setIsSubmitting(true);
+    setError(null);
+    
     try {
-      // Here you would typically send the reservation data to your API
-      console.log('Reservation data:', values);
+      // Format the date for display
+      const formattedDate = values.date?.toLocaleDateString('en-GB') || '';
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // For now, just show success
-      alert('Reservation request submitted successfully! We will contact you to confirm.');
-      form.reset();
+      // Get reservation type details
+      const selectedReservationType = reservationTypes.find(type => type.value === values.reservationType);
+      const reservationTypeLabel = selectedReservationType?.label || 'Regular Dining';
+
+      // If no deposit required, save reservation directly and go to success page
+      if (reservationFee === 0) {
+        const reservationData = {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          reservationType: values.reservationType,
+          reservationDate: formattedDate,
+          reservationTime: values.time,
+          partySize: values.partySize,
+          notes: values.notes || '',
+          depositAmount: 0
+        };
+
+        const saveResult = await PaymentService.saveReservation(reservationData);
+        
+        if (!saveResult.success) {
+          throw new Error(saveResult.errorMessage || 'Failed to save reservation');
+        }
+
+        // Store reservation details temporarily and redirect
+        if (saveResult.reservationDetails) {
+          sessionStorage.setItem('reservationDetails', JSON.stringify(saveResult.reservationDetails));
+        }
+        window.location.href = `${window.location.origin}/success/${saveResult.reservationId}`;
+        return;
+      }
+
+      // Create payment request for deposits
+      const paymentRequest = {
+        productName: `${reservationTypeLabel} Deposit - ${values.firstName} ${values.lastName}`,
+        amountInPence: reservationFee,
+        quantity: 1,
+        currency: 'GBP',
+        successUrl: `${window.location.origin}/success`,
+        cancelUrl: window.location.href,
+        metadata: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          reservationType: values.reservationType,
+          reservationTypeLabel: reservationTypeLabel,
+          reservationDate: formattedDate,
+          reservationTime: values.time,
+          partySize: values.partySize.toString(),
+          notes: values.notes || '',
+          bookingType: 'restaurant_reservation'
+        }
+      };
+
+
+
+      // Create Stripe checkout session
+      const paymentResponse = await PaymentService.createPaymentSession(paymentRequest);
+
+
+      if (paymentResponse.success && paymentResponse.checkoutUrl) {
+        // Redirect to Stripe checkout
+        PaymentService.redirectToCheckout(paymentResponse.checkoutUrl);
+      } else {
+        throw new Error(paymentResponse.errorMessage || 'Failed to create payment session');
+      }
     } catch (error) {
-      alert('There was an error submitting your reservation. Please try again.');
+      console.error('Reservation submission error:', error);
+      setError(error instanceof Error ? error.message : 'There was an error processing your reservation. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -103,8 +207,22 @@ export function RestaurantReservationsPage() {
               
               <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="md">
+                  {/* Reservation Type */}
+                  <Title order={3} size="h4" c="dark">Reservation Type</Title>
+                  <Select
+                    label="Select Reservation Type"
+                    placeholder="Choose your reservation type"
+                    data={reservationTypes.map(type => ({
+                      value: type.value,
+                      label: `${type.label} - ${type.description}`
+                    }))}
+                    value={form.values.reservationType}
+                    onChange={handleReservationTypeChange}
+                    required
+                  />
+
                   {/* Personal Information */}
-                  <Title order={3} size="h4" c="dark">Personal Information</Title>
+                  <Title order={3} size="h4" c="dark" mt="md">Personal Information</Title>
                   <Grid>
                     <Grid.Col span={{ base: 12, md: 6 }}>
                       <TextInput
@@ -125,27 +243,7 @@ export function RestaurantReservationsPage() {
                       />
                     </Grid.Col>
                   </Grid>
-                  
-                  <Grid>
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                      <TextInput
-                        label="Email"
-                        placeholder="your.email@example.com"
-                        leftSection={<IconMail size={16} />}
-                        {...form.getInputProps('email')}
-                        required
-                      />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                      <TextInput
-                        label="Phone Number"
-                        placeholder="+44 20 1234 5678"
-                        leftSection={<IconPhone size={16} />}
-                        {...form.getInputProps('phoneNumber')}
-                        required
-                      />
-                    </Grid.Col>
-                  </Grid>
+
 
                   {/* Reservation Details */}
                   <Title order={3} size="h4" c="dark" mt="md">Reservation Details</Title>
@@ -179,6 +277,7 @@ export function RestaurantReservationsPage() {
                         min={1}
                         max={12}
                         {...form.getInputProps('partySize')}
+                        onChange={handlePartySizeChange}
                         required
                       />
                     </Grid.Col>
@@ -191,6 +290,37 @@ export function RestaurantReservationsPage() {
                     {...form.getInputProps('notes')}
                   />
 
+                  {/* Reservation Fee Display */}
+                  <Paper withBorder p="md" style={{ backgroundColor: '#f0fdf4' }}>
+                    <Group justify="space-between" align="center">
+                      <Group>
+                        <IconInfoCircle size={20} color="#059669" />
+                        <Text size="sm" fw={500}>
+                          {reservationFee > 0 ? 'Deposit Required' : 'No Deposit Required'}
+                        </Text>
+                      </Group>
+                      <Text size="lg" fw={600} c="green">
+                        {PaymentService.formatAmount(reservationFee)}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt="xs">
+                      {(() => {
+                        const selectedType = reservationTypes.find(type => type.value === form.values.reservationType);
+                        if (!selectedType || selectedType.depositPerPerson === 0) {
+                          return 'No deposit required for regular dining reservations.';
+                        }
+                        return `${selectedType.description} (${form.values.partySize} guests). Deposits are fully refundable with 24h notice.`;
+                      })()}
+                    </Text>
+                  </Paper>
+
+                  {/* Error Alert */}
+                  {error && (
+                    <Alert icon={<IconAlertCircle size="1rem" />} title="Payment Error" color="red">
+                      {error}
+                    </Alert>
+                  )}
+
                   <Button 
                     type="submit" 
                     size="lg" 
@@ -198,8 +328,15 @@ export function RestaurantReservationsPage() {
                     loading={isSubmitting}
                     fullWidth
                     mt="md"
+                    leftSection={reservationFee > 0 ? <IconCreditCard size={20} /> : <IconCalendar size={20} />}
                   >
-                    {isSubmitting ? 'Submitting Reservation...' : 'Make Reservation'}
+                    {isSubmitting 
+                      ? (reservationFee > 0 ? 'Processing Payment...' : 'Confirming Reservation...') 
+                      : (reservationFee > 0 
+                          ? `Pay ${PaymentService.formatAmount(reservationFee)} Deposit & Reserve Table` 
+                          : 'Confirm Reservation (No Deposit Required)'
+                        )
+                    }
                   </Button>
                 </Stack>
               </form>
@@ -217,7 +354,6 @@ export function RestaurantReservationsPage() {
                     <Title order={3} mb="md" c="green">Reservation Policy</Title>
                     <Text size="sm" c="dimmed">
                       • Reservations are held for 15 minutes past the reserved time<br/>
-                      • Parties of 6 or more may have an 18% service charge added<br/>
                       • We require 24 hours notice for cancellations<br/>
                       • Special dietary requirements can be accommodated with advance notice
                     </Text>

@@ -11,6 +11,10 @@ const router = createBrowserRouter([
     path: '/success',
     element: <RestaurantReservationSuccessPage />,
   },
+  {
+    path: '/success/:id',
+    element: <RestaurantReservationSuccessPage />,
+  },
 ]);
 
 export function Router() {
