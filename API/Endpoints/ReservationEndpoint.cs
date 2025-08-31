@@ -343,7 +343,7 @@ namespace Project.Function.Endpoints
         {
             return new GoogleSheetInfoRecord(
                 SpreadsheetId: SystemConstants.GoogleSheetInfoRecordSpreadsheetId,
-                CellRange: "Reservations!A:L" // Include all columns A through L for comprehensive duplicate checking
+                CellRange: "Reservations!A2:L" // Include all columns A through L for comprehensive duplicate checking
             );
         }
     }
