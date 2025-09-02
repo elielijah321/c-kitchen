@@ -1,11 +1,12 @@
-import { Container, Title, Text, Button, Group, Stack, Card, Grid, Box, TextInput, Textarea, Select, NumberInput, Alert, Paper } from '@mantine/core';
+import { Container, Title, Text, Button, Group, Stack, Card, Grid, Box, TextInput, Textarea, Select, NumberInput, Alert, Paper, Loader, Center } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { IconCalendar, IconClock, IconUsers, IconUser, IconCreditCard, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { RestaurantLayout } from '../../components/Restaurant/RestaurantLayout';
 import { AnimatedSection } from '../../components/Restaurant/AnimatedSection';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PaymentService } from '../../services/paymentService';
+import { useReservationTypes } from '../../contexts/ReservationTypesContext';
 
 interface ReservationForm {
   firstName: string;
@@ -17,37 +18,21 @@ interface ReservationForm {
   notes: string;
 }
 
-const reservationTypes = [
-  {
-    value: 'regular',
-    label: 'Regular Dining',
-    description: 'No deposit required',
-    depositPerPerson: 0,
-  },
-  {
-    value: 'ayce',
-    label: 'All You Can Eat (AYCE)',
-    description: '£5 per person deposit',
-    depositPerPerson: 5,
-  },
-  {
-    value: 'christmas',
-    label: 'Christmas Menu (inc Christmas Day)',
-    description: '£8 per person deposit',
-    depositPerPerson: 8,
-  },
-];
+// Reservation types will be loaded from the API
 
 export function RestaurantReservationsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reservationFee, setReservationFee] = useState(0); // Default fee for regular dining
   
+  // Use the context for reservation types
+  const { reservationTypes, isLoading: isLoadingTypes, error: typesError } = useReservationTypes();
+  
   const form = useForm<ReservationForm>({
     initialValues: {
       firstName: '',
       lastName: '',
-      reservationType: 'regular',
+      reservationType: '',
       date: null,
       time: '',
       partySize: 2,
@@ -63,11 +48,18 @@ export function RestaurantReservationsPage() {
     },
   });
 
+  // Set default reservation type when types are loaded
+  useEffect(() => {
+    if (reservationTypes.length > 0 && !form.values.reservationType) {
+      form.setFieldValue('reservationType', reservationTypes[0].Value);
+    }
+  }, [reservationTypes]);
+
   // Calculate reservation fee based on type and party size
   const calculateReservationFee = (reservationType: string, partySize: number) => {
-    const selectedType = reservationTypes.find(type => type.value === reservationType);
+    const selectedType = reservationTypes.find(type => type.Value === reservationType);
     if (!selectedType) return 0;
-    return selectedType.depositPerPerson * partySize;
+    return selectedType.DepositAmount * partySize;
   };
 
   // Update reservation fee when party size changes
@@ -94,8 +86,8 @@ export function RestaurantReservationsPage() {
       const formattedDate = values.date?.toLocaleDateString('en-GB') || '';
       
       // Get reservation type details
-      const selectedReservationType = reservationTypes.find(type => type.value === values.reservationType);
-      const reservationTypeLabel = selectedReservationType?.label || 'Regular Dining';
+      const selectedReservationType = reservationTypes.find(type => type.Value === values.reservationType);
+      const reservationTypeLabel = selectedReservationType?.Label || 'Regular Dining';
 
       // If no deposit required, save reservation directly and go to success page
       if (reservationFee === 0) {
@@ -209,17 +201,28 @@ export function RestaurantReservationsPage() {
                 <Stack gap="md">
                   {/* Reservation Type */}
                   <Title order={3} size="h4" c="dark">Reservation Type</Title>
-                  <Select
-                    label="Select Reservation Type"
-                    placeholder="Choose your reservation type"
-                    data={reservationTypes.map(type => ({
-                      value: type.value,
-                      label: `${type.label} - ${type.description}`
-                    }))}
-                    value={form.values.reservationType}
-                    onChange={handleReservationTypeChange}
-                    required
-                  />
+                  {isLoadingTypes ? (
+                    <Center py="md">
+                      <Loader size="sm" />
+                      <Text ml="sm" size="sm" c="dimmed">Loading reservation types...</Text>
+                    </Center>
+                  ) : typesError ? (
+                    <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red">
+                      {typesError}
+                    </Alert>
+                  ) : (
+                    <Select
+                      label="Select Reservation Type"
+                      placeholder="Choose your reservation type"
+                      data={reservationTypes.map(type => ({
+                        value: type.Value,
+                        label: `${type.Label} - ${type.Description}`
+                      }))}
+                      value={form.values.reservationType}
+                      onChange={handleReservationTypeChange}
+                      required
+                    />
+                  )}
 
                   {/* Personal Information */}
                   <Title order={3} size="h4" c="dark" mt="md">Personal Information</Title>
@@ -305,11 +308,11 @@ export function RestaurantReservationsPage() {
                     </Group>
                     <Text size="xs" c="dimmed" mt="xs">
                       {(() => {
-                        const selectedType = reservationTypes.find(type => type.value === form.values.reservationType);
-                        if (!selectedType || selectedType.depositPerPerson === 0) {
+                        const selectedType = reservationTypes.find(type => type.Value === form.values.reservationType);
+                        if (!selectedType || selectedType.DepositAmount === 0) {
                           return 'No deposit required for regular dining reservations.';
                         }
-                        return `${selectedType.description} (${form.values.partySize} guests). Deposits are fully refundable with 24h notice.`;
+                        return `${selectedType.Description} (${form.values.partySize} guests). Deposits are fully refundable with 24h notice.`;
                       })()}
                     </Text>
                   </Paper>
@@ -363,10 +366,8 @@ export function RestaurantReservationsPage() {
                   <Card shadow="sm" padding="lg" radius="md" withBorder style={{ height: '100%' }}>
                     <Title order={3} mb="md" c="green">Contact Us</Title>
                     <Text size="sm" c="dimmed">
-                      Phone: +44 20 7123 4567<br/>
-                      Email: reservations@caribbeankitchen.co.uk<br/>
-                      Address: 123 Caribbean Street<br/>
-                      London, SW1A 1AA
+                      Phone: 0161 624 2444<br/>
+                      Address: 88 Rochdale Rd, Royton, Oldham OL2 6QF
                     </Text>
                   </Card>
                 </Grid.Col>

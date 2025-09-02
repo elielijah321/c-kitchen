@@ -5,11 +5,14 @@ import './App.css';
 import { MantineProvider } from '@mantine/core';
 import { Router } from './Router';
 import { theme } from './theme';
+import { ReservationTypesProvider } from './contexts/ReservationTypesContext';
 
 export default function App() {
   return (
     <MantineProvider theme={theme}>
-      <Router />
+      <ReservationTypesProvider>
+        <Router />
+      </ReservationTypesProvider>
     </MantineProvider>
   );
 }
